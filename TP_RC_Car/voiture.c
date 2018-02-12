@@ -4,6 +4,13 @@ static uint32_t servo_med_pos_cmd = 0;
 static uint32_t servo_one_deg_step = 0;
 static uint8_t timer = 0;
 static uint8_t channel = 0;
+static uint8_t blink_left_instruction = 0;
+static uint8_t blink_left_state = 0;
+static uint8_t blink_right_instruction = 0;
+static uint8_t blink_right_state = 0;
+static uint16_t refreshCounter = 0;
+
+
 int servo_config(uint8_t timer_num, uint8_t pwm_chan, uint8_t uart_num)
 {
 	uint32_t servo_command_period = 0;
@@ -62,4 +69,131 @@ int set_servo(int givenAngle, int uart_num)
 	timer_set_match(timer, channel, pos);
 	uprintf(uart_num, "Servo(%d): %d (%d)\n", channel, angle, pos);
 	return val;
+}
+
+/* This mode reads values from ADC[0:2] every 150ms and uses the values to set the leds.
+ * Pixels are updated when all pixel are set from ADC input.
+ */
+void mode_test(void)
+{
+	static uint8_t pixel = 0;
+	uint16_t red = 0, green = 0, blue = 0;
+	red = 255;
+	/* Set one pixel */
+	ws2812_set_pixel(0, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+	blue = 255;
+	ws2812_set_pixel(1, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+	ws2812_send_frame(2);
+}
+
+void switchOn_stop_light(uint8_t on)
+{
+	uint16_t red = 0, green = 0, blue = 0;
+	if(on)
+	{
+		red = 255;
+	}
+	else
+	{
+		red = 0;
+	}
+	ws2812_set_pixel(STOP_RIGHT, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+	ws2812_set_pixel(STOP_LEFT, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+}
+
+void switchOn_blink_left(uint8_t on)
+{
+	uint16_t red = 0, green = 0, blue = 0;
+	blink_left_state = on;
+	if(on)
+	{
+		red = 204;
+		green = 139;
+	}
+	else
+	{
+		red = 0;
+		green = 0;
+	}
+	ws2812_set_pixel(BLINKER_LEFT_FRONT, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+	ws2812_set_pixel(BLINKER_LEFT_BACK, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+}
+
+void switchOn_blink_right(uint8_t on)
+{
+	uint16_t red = 0, green = 0, blue = 0;
+	blink_right_state = on;
+	if(on)
+	{
+		red = 204;
+		green = 139;
+	}
+	else
+	{
+		red = 0;
+		green = 0;
+	}
+	ws2812_set_pixel(BLINKER_RIGHT_FRONT, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+	ws2812_set_pixel(BLINKER_RIGHT_BACK, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+}
+
+void switchOn_lights(uint8_t on)
+{
+	uint16_t red = 0, green = 0, blue = 0;
+	if(on)
+	{
+		red = 255;
+		green = 239;
+		blue = 89;
+	}
+	else
+	{
+		red = 0;
+		green = 0;
+		blue = 0;
+	}
+	ws2812_set_pixel(LIGHTS_LEFT, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+	ws2812_set_pixel(LIGHTS_RIGHT, (red & 0xFF), (green & 0xFF), (blue & 0xFF));
+}
+
+void blink_left(uint8_t on)
+{
+	blink_left_instruction = on;
+}
+
+void blink_right(uint8_t on)
+{
+	blink_right_instruction = on;
+}
+
+void refresh_blinkers()
+{
+	if(blink_left_instruction && blink_left_state)
+	{
+		switchOn_blink_left(0);
+	}
+	else if(blink_left_instruction)
+	{
+		switchOn_blink_left(1);
+	}
+
+	if(blink_right_instruction && blink_right_state)
+	{
+		switchOn_blink_right(0);
+	}
+	else if(blink_right_instruction)
+	{
+		switchOn_blink_right(1);
+	}
+}
+
+void refresh_lights_global()
+{
+	refreshCounter++;
+	if(refreshCounter >= MAX_REFRESH_BLINKERS)
+	{
+		refreshCounter = 0;
+		refresh_blinkers();
+	}
+	ws2812_send_frame(LED_NUMBER);
 }

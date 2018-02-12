@@ -55,6 +55,7 @@ const struct pio_config common_pins[] = {
 	{ LPC_UART0_TX_PIO_0_2,  LPC_IO_DIGITAL },
 	/* TIMER_32B0 */
 	{ LPC_TIMER_32B0_M1_PIO_0_19, LPC_TIMER_PIN_CONFIG },
+	{ LPC_GPIO_0_20, (LPC_IO_MODE_PULL_UP | LPC_IO_DIGITAL) },
 	ARRAY_LAST_PIO,
 };
 
@@ -71,6 +72,7 @@ const struct pio_config adc_pins[] = {
 const struct pio status_led_green = LPC_GPIO_1_4;
 const struct pio status_led_red = LPC_GPIO_1_5;
 
+const struct pio ws2812_data_out_pin = LPC_GPIO_0_20; /* Led control data pin */
 /***************************************************************************** */
 void system_init()
 {
@@ -167,6 +169,16 @@ int main(void)
 	uart_on(UART0, 115200, data_rx);
 	servo_config(LPC_TIMER_32B0, 1, 0);
 
+	/* Led strip configuration */
+	ws2812_config(&ws2812_data_out_pin);
+	//isb();
+	msleep(5);
+ 	switchOn_stop_light(1);
+ 	blink_right(1);
+ 	blink_left(1);
+ 	switchOn_lights(1);
+ 	refresh_lights_global();
+
 	while (1) {
 	
 		if (text_received != 0) {
@@ -174,7 +186,8 @@ int main(void)
 			computeReceivedFrame();
 			text_received = 0;
 		}
-		sleep(1000);
+ 		refresh_lights_global();
+		msleep(10);
 	}
 	return 0;
 }
