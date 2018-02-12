@@ -32,24 +32,13 @@
 #include "extdrv/status_led.h"
 #include "drivers/adc.h"
 #include "drivers/timers.h"
-
+#include "voiture.h"
 
 #define MODULE_VERSION   0x04
 #define MODULE_NAME "GPIO Demo Module"
 
 
 #define SELECTED_FREQ  FREQ_SEL_48MHz
-
-/* Chose on of these depending on the signal you need:
- *  - inverted one (3), for use with a single transistor
- *  - non inverted (40 - 3), for use with two transistors (or none).
- */
-#define DUTY_INVERTED 0
-#if (DUTY_INVERTED == 1)
-#define SERVO_MED_POS_DUTY_CYCLE  3
-#else
-#define SERVO_MED_POS_DUTY_CYCLE  (40 - 3)
-#endif
 
 
 #define LPC_TIMER_PIN_CONFIG   (LPC_IO_MODE_PULL_UP | LPC_IO_DIGITAL | LPC_IO_DRIVE_HIGHCURENT)
@@ -81,71 +70,6 @@ const struct pio_config adc_pins[] = {
 
 const struct pio status_led_green = LPC_GPIO_1_4;
 const struct pio status_led_red = LPC_GPIO_1_5;
-
-/***************************************************************************** */
-static uint32_t servo_med_pos_cmd = 0;
-static uint32_t servo_one_deg_step = 0;
-static uint8_t timer = 0;
-static uint8_t channel = 0;
-int servo_config(uint8_t timer_num, uint8_t pwm_chan, uint8_t uart_num)
-{
-	uint32_t servo_command_period = 0;
-	struct lpc_timer_pwm_config timer_conf = {
-		.nb_channels = 1,
-		.period_chan = 3,
-	};
-
-	if (timer_num > LPC_TIMER_32B1) {
-		uprintf(uart_num, "Bad timer number\n");
-		return -1;
-	}
-	if (pwm_chan >= 3) {
-		uprintf(uart_num, "Bad channel number\n");
-		return -1;
-	}
-	timer = timer_num;
-	channel = pwm_chan;
-	timer_conf.outputs[0] = pwm_chan;
-
-	/* compute the period and median position for the servo command */
-	/* We want 20ms (50Hz), timer counts at main clock frequency */
-	servo_command_period = get_main_clock() / 50;
-	/* servo_command_period is 20ms, we need 1.5ms, which is 3/40. */
-	servo_med_pos_cmd = ((servo_command_period / 40) * SERVO_MED_POS_DUTY_CYCLE);
-	servo_one_deg_step = ((servo_command_period / 41) / 48);
-	timer_conf.match_values[0] = servo_med_pos_cmd;
-	timer_conf.period = servo_command_period;
-
-	timer_on(timer, 0, NULL);
-	timer_pwm_config(timer, &timer_conf);
-	timer_start(timer);
-
-	uprintf(uart_num, "Servos configured (T%d : C%d), Period : %d, med_pos : %d\n",
-						timer, channel, servo_command_period, servo_med_pos_cmd);
-
-	return 0;
-}
-
-int set_servo(int givenAngle, int uart_num)
-{
-	uint16_t val = 0, angle = givenAngle;
-	uint32_t pos = servo_med_pos_cmd;
-
-	if (angle > 180) {
-		angle = 180;
-	}
-
-	/* And compute the new match value for the angle */
-	if (angle >= 90) {
-		pos += ((angle - 90) * servo_one_deg_step);
-	} else {
-		pos -= ((90 - angle) * servo_one_deg_step);
-	}
-	timer_set_match(timer, channel, pos);
-	uprintf(uart_num, "Servo(%d): %d (%d)\n", channel, angle, pos);
-	return val;
-}
-
 
 /***************************************************************************** */
 void system_init()
@@ -223,11 +147,13 @@ int atoi(char* chr)
 	return res;
 }
 
-void computeAngleReceived()
+#define ANGLE_OPCODE 'A'
+
+void computeReceivedFrame()
 {
 	char opCode = inbuff[0];
 	int data = atoi(inbuff+1);
-	if(opCode == 'A')
+	if(opCode == ANGLE_OPCODE)
 	{
 		set_servo(data,0);
 	}
@@ -245,7 +171,7 @@ int main(void)
 	
 		if (text_received != 0) {
 			status_led(red_toggle);
-			computeAngleReceived(inbuff);
+			computeReceivedFrame();
 			text_received = 0;
 		}
 		sleep(1000);
