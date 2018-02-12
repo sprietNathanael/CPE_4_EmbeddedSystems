@@ -168,7 +168,7 @@ void blink_right(uint8_t on)
 
 void refresh_blinkers()
 {
-	if(blink_left_instruction && blink_left_state)
+	if(blink_left_state)
 	{
 		switchOn_blink_left(0);
 	}
@@ -177,7 +177,7 @@ void refresh_blinkers()
 		switchOn_blink_left(1);
 	}
 
-	if(blink_right_instruction && blink_right_state)
+	if(blink_right_state)
 	{
 		switchOn_blink_right(0);
 	}

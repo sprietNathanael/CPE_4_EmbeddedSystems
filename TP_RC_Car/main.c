@@ -150,14 +150,33 @@ int atoi(char* chr)
 }
 
 #define ANGLE_OPCODE 'A'
+#define STOP_OPCODE 'S'
+#define LIGHT_OPCODE 'B'
+#define BLINK_RIGHT_OPCODE 'R'
+#define BLINK_LEFT_OPCODE 'L'
 
 void computeReceivedFrame()
 {
 	char opCode = inbuff[0];
 	int data = atoi(inbuff+1);
-	if(opCode == ANGLE_OPCODE)
+	switch(opCode)
 	{
-		set_servo(data,0);
+		case ANGLE_OPCODE:
+			set_servo(data,0);
+			break;
+		case STOP_OPCODE:
+			switchOn_stop_light(data);
+			break;
+		case LIGHT_OPCODE:
+			switchOn_lights(data);
+			break;
+		case BLINK_RIGHT_OPCODE:
+			blink_right(data);
+			break;
+		case BLINK_LEFT_OPCODE:
+			blink_left(data);
+			break;
+
 	}
 
 }
@@ -173,11 +192,11 @@ int main(void)
 	ws2812_config(&ws2812_data_out_pin);
 	//isb();
 	msleep(5);
- 	switchOn_stop_light(1);
+ 	/*switchOn_stop_light(1);
  	blink_right(1);
  	blink_left(1);
  	switchOn_lights(1);
- 	refresh_lights_global();
+ 	refresh_lights_global();*/
 
 	while (1) {
 	
