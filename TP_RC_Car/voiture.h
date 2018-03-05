@@ -37,15 +37,17 @@
 #define MAX_REFRESH_BLINKERS 50
 
 int servo_config(uint8_t timer_num, uint8_t pwm_chan, uint8_t uart_num);
-int set_servo(int givenAngle, int uart_num);
+int set_dir(int givenAngle, int uart_num);
+int set_speed_front(int givenAngle, int uart_num);
+int set_speed_back(int givenSpeed, int uart_num);
 void mode_test(void);
-void switchOn_stop_light(uint8_t on);
+void switchOn_stop_light(uint8_t on, uint8_t uart);
 void switchOn_blink_left(uint8_t on);
 void switchOn_blink_right(uint8_t on);
 void switchOn_lights(uint8_t on);
 void blink_left(uint8_t on);
 void blink_right(uint8_t on);
-void refresh_lights_global();
+void refresh_lights_global(uint8_t uart);
 void refresh_blinkers();
 
 #endif

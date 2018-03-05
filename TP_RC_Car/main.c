@@ -55,7 +55,8 @@ const struct pio_config common_pins[] = {
 	{ LPC_UART0_TX_PIO_0_2,  LPC_IO_DIGITAL },
 	/* TIMER_32B0 */
 	{ LPC_TIMER_32B0_M1_PIO_0_19, LPC_TIMER_PIN_CONFIG },
-	{ LPC_GPIO_0_20, (LPC_IO_MODE_PULL_UP | LPC_IO_DIGITAL) },
+	{ LPC_TIMER_32B0_M2_PIO_0_20, LPC_TIMER_PIN_CONFIG },
+	{ LPC_GPIO_0_21, (LPC_IO_MODE_PULL_UP | LPC_IO_DIGITAL) },
 	ARRAY_LAST_PIO,
 };
 
@@ -72,7 +73,12 @@ const struct pio_config adc_pins[] = {
 const struct pio status_led_green = LPC_GPIO_1_4;
 const struct pio status_led_red = LPC_GPIO_1_5;
 
-const struct pio ws2812_data_out_pin = LPC_GPIO_0_20; /* Led control data pin */
+const struct pio ws2812_data_out_pin = LPC_GPIO_0_21; /* Led control data pin */
+
+/* ultrasensor pins */
+const struct pio ultrasensor_echo = LPC_GPIO_0_6;
+const struct pio ultrasensor_trigger = LPC_GPIO_0_5;
+
 /***************************************************************************** */
 void system_init()
 {
@@ -151,21 +157,24 @@ int atoi(char* chr)
 
 #define ANGLE_OPCODE 'A'
 #define STOP_OPCODE 'S'
-#define LIGHT_OPCODE 'B'
+#define LIGHT_OPCODE 'W'
 #define BLINK_RIGHT_OPCODE 'R'
 #define BLINK_LEFT_OPCODE 'L'
+#define SPEED_OPCODE 'F'
+#define BACK_OPCODE 'B'
 
 void computeReceivedFrame()
 {
+	uprintf(UART0, "Frame Received\n");
 	char opCode = inbuff[0];
 	int data = atoi(inbuff+1);
 	switch(opCode)
 	{
 		case ANGLE_OPCODE:
-			set_servo(data,0);
+			set_dir(data,0);
 			break;
 		case STOP_OPCODE:
-			switchOn_stop_light(data);
+			switchOn_stop_light(data, 0);
 			break;
 		case LIGHT_OPCODE:
 			switchOn_lights(data);
@@ -176,17 +185,57 @@ void computeReceivedFrame()
 		case BLINK_LEFT_OPCODE:
 			blink_left(data);
 			break;
-
-	}
+		case SPEED_OPCODE:
+			set_speed_front(data,0);
+			break;
+		case BACK_OPCODE:
+			set_speed_back(data,0);
+			break;
+		}
 
 }
+
+/*==================Ultrasonic sensor=====================*/
+
+/* Note that clock cycles counter wraps every 89 seconds with system clock running at 48 MHz */
+static volatile uint32_t pulse_start = 0;  /* Clock cycles counter upon echo start */
+static volatile uint32_t pulse_end = 0;    /* Clock cycles counter upon echo end */
+static volatile uint32_t pulse_duration = 0;
+void pulse_feedback(uint32_t gpio) {
+	static uint32_t pulse_state = 0;
+	if (pulse_state == 0) {
+		pulse_start = systick_get_clock_cycles();
+		pulse_state = 1;
+	} else {
+		pulse_end = systick_get_clock_cycles();
+		if (pulse_end > pulse_start) {
+			pulse_duration = (pulse_end - pulse_start);
+		} else {
+			pulse_duration = (0xFFFFFFFF - pulse_start);
+			pulse_duration += pulse_end;
+		}
+		pulse_state = 0;
+	}
+}
+
+/* Delay between measures should be at least 50ms  */
+#define DELAY 50
 
 /***************************************************************************** */
 int main(void)
 {
+	uint32_t next_time = 0;
+	uint32_t delay = 0;
+
 	system_init();
 	uart_on(UART0, 115200, data_rx);
+	next_time = systick_get_tick_count();
 	servo_config(LPC_TIMER_32B0, 1, 0);
+	servo_config(LPC_TIMER_32B0, 2, 0);
+	/* Callback on pulse start and end */
+	set_gpio_callback(pulse_feedback, &ultrasensor_echo, EDGES_BOTH);
+
+	uprintf(UART0, "Ultrasonic distance sensor using GPIO %d.%d\n", ultrasensor_echo.port, ultrasensor_echo.pin);
 
 	/* Led strip configuration */
 	ws2812_config(&ws2812_data_out_pin);
@@ -199,17 +248,56 @@ int main(void)
  	refresh_lights_global();*/
 
 	while (1) {
-	
+
+		//================== Serial Reception ==========================
 		if (text_received != 0) {
 			status_led(red_toggle);
 			computeReceivedFrame();
 			text_received = 0;
 		}
- 		refresh_lights_global();
-		msleep(10);
+ 		refresh_lights_global(0);
+
+		
+ 		//================= Ultrasonic distance measurment ===============
+ 		
+		uint32_t distance = 0;
+
+		// Initiate distance mesurement
+		gpio_dir_out(ultrasensor_trigger);
+		gpio_clear(ultrasensor_trigger);
+		usleep(10);
+		gpio_set(ultrasensor_trigger);
+		usleep(10);
+		gpio_clear(ultrasensor_trigger);
+		pulse_duration = 0;
+
+		//Wait for value to be available
+		while (pulse_duration == 0) {
+			msleep(1);
+		}
+		//Convert pulse width in us to distance in mm 
+		distance = ((pulse_duration * 10) / (get_main_clock() / (1000*1000)));
+		distance = distance / 29;
+		if(distance < 100)
+		{
+			set_speed_front(90,0);
+			switchOn_stop_light(1, 0);
+		}
+		// Send value on serial 
+		// uprintf(UART0, "dist: %dmm\n", distance);
+
+
+		// And wait at least 50ms between loops 
+		delay = next_time - systick_get_tick_count();
+		
+		//------
+		
+ 		/*if (delay > DELAY) {
+			delay = DELAY;
+		}
+		msleep(delay);
+		next_time += DELAY;*/
+		msleep(50);
 	}
 	return 0;
 }
-
-
-

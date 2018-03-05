@@ -51,7 +51,7 @@ int servo_config(uint8_t timer_num, uint8_t pwm_chan, uint8_t uart_num)
 }
 
 
-int set_servo(int givenAngle, int uart_num)
+int set_dir(int givenAngle, int uart_num)
 {
 	uint16_t val = 0, angle = givenAngle;
 	uint32_t pos = servo_med_pos_cmd;
@@ -63,20 +63,62 @@ int set_servo(int givenAngle, int uart_num)
 	/* And compute the new match value for the angle */
 	if (angle >= 90) {
 		pos += ((angle - 90) * servo_one_deg_step);
+
 	} else {
 		pos -= ((90 - angle) * servo_one_deg_step);
+	}
+	timer_set_match(timer, 1, pos);
+	uprintf(uart_num, "Servo(%d): %d (%d)\n", 1, angle, pos);
+	return val;
+}
+
+int set_speed_front(int givenSpeed, int uart_num)
+{
+	uint16_t val = 0, angle = givenSpeed;
+	uint32_t pos = servo_med_pos_cmd;
+
+	/* And compute the new match value for the angle */
+	if (angle >= 90) {
+		pos += ((angle - 90) * servo_one_deg_step);
+	} else {
+		pos -= ((90 - angle) * servo_one_deg_step);
+	}
+	timer_set_match(timer, 2, pos);
+	uprintf(uart_num, "FRONT Servo(%d): %d (%d)\n", 2, angle, pos);
+	return val;
+}
+
+int set_speed_back(int givenSpeed, int uart_num)
+{
+	uint16_t val = 0, angle = 90-givenSpeed;
+	uint32_t pos = servo_med_pos_cmd;
+
+	if (angle > 90) {
+		angle = 90;
+	}
+	else if(angle < 0) {
+		angle = 0;
+	}
+
+	/* And compute the new match value for the angle */
+	if (angle >= 90) {
+		pos += ((angle - 90) * servo_one_deg_step);
+		switchOn_blink_right(1);
+	} else {
+		pos -= ((90 - angle) * servo_one_deg_step);
+		switchOn_blink_left(1);
 	}
 	timer_set_match(timer, channel, pos);
 	uprintf(uart_num, "Servo(%d): %d (%d)\n", channel, angle, pos);
 	return val;
 }
 
+
 /* This mode reads values from ADC[0:2] every 150ms and uses the values to set the leds.
  * Pixels are updated when all pixel are set from ADC input.
  */
 void mode_test(void)
 {
-	static uint8_t pixel = 0;
 	uint16_t red = 0, green = 0, blue = 0;
 	red = 255;
 	/* Set one pixel */
@@ -86,8 +128,9 @@ void mode_test(void)
 	ws2812_send_frame(2);
 }
 
-void switchOn_stop_light(uint8_t on)
+void switchOn_stop_light(uint8_t on, uint8_t uart)
 {
+	uprintf(uart, "switch on stop\n");
 	uint16_t red = 0, green = 0, blue = 0;
 	if(on)
 	{
@@ -187,7 +230,7 @@ void refresh_blinkers()
 	}
 }
 
-void refresh_lights_global()
+void refresh_lights_global(uint8_t uart)
 {
 	refreshCounter++;
 	if(refreshCounter >= MAX_REFRESH_BLINKERS)
@@ -195,5 +238,6 @@ void refresh_lights_global()
 		refreshCounter = 0;
 		refresh_blinkers();
 	}
-	ws2812_send_frame(LED_NUMBER);
+	ws2812_send_frame(0);
 }
+
