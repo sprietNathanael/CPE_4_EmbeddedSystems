@@ -34,12 +34,11 @@
 #define BLINKER_LEFT_BACK 7
 
 #define LED_NUMBER 8
-#define MAX_REFRESH_BLINKERS 50
+#define MAX_REFRESH_BLINKERS 5
 
-int servo_config(uint8_t timer_num, uint8_t pwm_chan, uint8_t uart_num);
+int servo_config(uint8_t timer_num, uint8_t pwm_chan_1, uint8_t pwm_chan_2, uint8_t uart_num);
 int set_dir(int givenAngle, int uart_num);
-int set_speed_front(int givenAngle, int uart_num);
-int set_speed_back(int givenSpeed, int uart_num);
+int set_speed(int givenAngle, int uart_num);
 void mode_test(void);
 void switchOn_stop_light(uint8_t on, uint8_t uart);
 void switchOn_blink_left(uint8_t on);

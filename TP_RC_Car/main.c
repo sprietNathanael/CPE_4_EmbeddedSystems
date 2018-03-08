@@ -186,10 +186,7 @@ void computeReceivedFrame()
 			blink_left(data);
 			break;
 		case SPEED_OPCODE:
-			set_speed_front(data,0);
-			break;
-		case BACK_OPCODE:
-			set_speed_back(data,0);
+			set_speed(data,0);
 			break;
 		}
 
@@ -230,8 +227,7 @@ int main(void)
 	system_init();
 	uart_on(UART0, 115200, data_rx);
 	next_time = systick_get_tick_count();
-	servo_config(LPC_TIMER_32B0, 1, 0);
-	servo_config(LPC_TIMER_32B0, 2, 0);
+	servo_config(LPC_TIMER_32B0, 1, 2, 0);
 	/* Callback on pulse start and end */
 	set_gpio_callback(pulse_feedback, &ultrasensor_echo, EDGES_BOTH);
 
@@ -280,7 +276,7 @@ int main(void)
 		distance = distance / 29;
 		if(distance < 100)
 		{
-			set_speed_front(90,0);
+			set_speed(90,0);
 			switchOn_stop_light(1, 0);
 		}
 		// Send value on serial 
