@@ -22,5 +22,16 @@
 
 	<script src="ressources/js/jquery.min.js"></script>
 	<script src="ressources/js/materialize.min.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<script type="text/javascript">
+		console.log("test");
+		var socket = io();
+		socket.emit("test", {test: "salut"});
+		socket.on("test", (data) => {
+			console.log("Message received : "+data.test);
+		});
+	</script>
+
+	<%- script %>
 </body>
 </html>

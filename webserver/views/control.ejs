@@ -5,23 +5,23 @@
 			<div class="card">
 				<div class="card-content">
 					<div class="row">
-						<div class="buttonContainer col s4 offset-s4">
+						<div class="buttonContainer col s4 offset-s4" onclick="control('up')">
 							<a class="waves-effect waves-light btn"><i class="fa fa-arrow-up"></i></a>
 						</div>
 					</div>
 					<div class="row">
-						<div class="buttonContainer col s4">
+						<div class="buttonContainer col s4" onclick="control('left')">
 							<a class="waves-effect waves-light btn"><i class="fa fa-arrow-left"></i></a>
 						</div>
-						<div class="buttonContainer col s4">
+						<div class="buttonContainer col s4" onclick="control('stop')">
 							<a class="waves-effect red waves-light btn"><i class="fa fa-stop"></i></a>
 						</div>
-						<div class="buttonContainer col s4">
+						<div class="buttonContainer col s4" onclick="control('right')">
 							<a class="waves-effect waves-light btn"><i class="fa fa-arrow-right"></i></a>
 						</div>
 					</div>
 					<div class="row">
-						<div class="buttonContainer col s4 offset-s4">
+						<div class="buttonContainer col s4 offset-s4" onclick="control('down')">
 							<a class="waves-effect waves-light btn"><i class="fa fa-arrow-down"></i></a>
 						</div>
 					</div>
@@ -29,5 +29,35 @@
 				</div>
 			</div>
 		</div>
+
+		<div class="col s3 m3">
+			<div class="card">
+				<div class="card-content">
+					Obstacle à : <span id="distance"></span>cm
+				</div>
+			</div>
+		</div>
+
+		<div class="col s3 m3">
+			<div class="card">
+				<div class="card-content">
+					<img id="preview" src="ressources/preview.jpg" alt="Mountain View">
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
+
+<%- contentFor('script') %>
+<script >
+
+	control = (direction) => {
+		socket.emit("controlDirection",{direction: direction});
+	}
+	
+	socket.on("distance", (data) => {
+		document.getElementById("distance").innerHTML = data.distance/10;
+		// console.log("New distance : "+data.distance);
+	});
+	setInterval(function(){document.getElementById("preview").src="ressources/preview.jpg?"+(new Date().getTime())}, 1000);
+</script>

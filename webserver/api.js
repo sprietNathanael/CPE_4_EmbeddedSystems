@@ -1,14 +1,31 @@
-const SerialPort = require("serialport");
-serialPort = new SerialPort("/dev/ttyUSB0",
-{
-	baudrate: 115200,
-	parser: SerialPort.parsers.raw
-});
 const express = require('express');
 const expressLayouts = require("express-ejs-layouts");
 const app = express();
 app.use(expressLayouts);
 app.set("view engine","ejs");
+
+const SerialPort = require("serialport");
+var serialPort = new SerialPort("/dev/ttyS4",
+{
+	baudRate: 115200,
+	parser: SerialPort.parsers.raw
+});
+
+var SerialSender = require("./serialSender.js");
+var serialeSender = new SerialSender(serialPort);
+
+var server = require("http").Server(app);
+var socketServer = require("socket.io")(server);
+var SocketControl = require("./socket");
+var socketControl = new SocketControl(socketServer);
+
+var Controller = require("./controller.js");
+var controller = new Controller(socketControl, serialeSender);
+
+socketControl.initializeSocket(controller);
+
+var SerialReceiver = require("./serialReceiver.js");
+var serialReceiver = new SerialReceiver(serialPort, controller);
 
 var sensors = [
 	{
@@ -97,6 +114,5 @@ app.use((req, res, next) => {
 	res.send(404, "Page introuvable !");
 });
 
-app.listen(8080, function () {
-  console.log('Example app listening on port 8080!');
-})
+server.listen(8080);
+server.listen("[Server] listening on 8080");
